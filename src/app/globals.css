@@ -85,13 +85,22 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .wave-decoration { height: 112px; }
 
 .question-page { min-height: 100svh; padding: 34px 18px 26px; background: radial-gradient(ellipse at top left, #e0edf4 0, transparent 43%), var(--tint); }
+.question-page[dir="rtl"] { font-family: var(--font-arabic), Tahoma, sans-serif; }
 .question-shell { width: min(100%, 480px); margin: 0 auto; }
 .question-header { display: grid; justify-items: center; gap: 12px; margin-bottom: 23px; text-align: center; }
 .question-header .brand-lockup { justify-self: start; width: 100%; padding: 4px 0 16px; border-bottom: 1px solid var(--border); }
 .question-header .eyebrow { margin-top: 8px; }
+.question-page[dir="rtl"] .question-header .eyebrow { letter-spacing: 0; text-transform: none; }
+.question-page[dir="rtl"] .question-header .brand-lockup { direction: ltr; }
 .question-header h1 { margin: -6px 0 0; font-size: clamp(23px, 6vw, 30px); line-height: 1.18; }
 .event-speaker { margin: -5px 0 0; color: var(--muted); font-size: 15px; }
 .question-form { display: grid; gap: 20px; padding: 22px; }
+.question-page[dir="rtl"] .question-form { text-align: right; }
+.question-page[dir="rtl"] .question-form .field { direction: rtl; }
+.question-page[dir="rtl"] .question-form .label { text-align: right; }
+.question-page[dir="rtl"] .question-form .form-heading > div { flex: 1; }
+.question-page[dir="rtl"] .question-form .form-heading h2,
+.question-page[dir="rtl"] .question-form .form-heading p { text-align: right; }
 .form-heading { display: flex; align-items: flex-start; gap: 13px; padding-bottom: 17px; border-bottom: 1px solid #e8eef2; }
 .form-step { display: grid; width: 36px; height: 36px; flex: 0 0 36px; place-items: center; border-radius: 11px; background: #e7f0f6; color: var(--blue-deep); font-size: 13px; font-weight: 800; }
 .form-heading h2 { margin: 0; font-size: 20px; }
@@ -115,6 +124,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .state-symbol { display: grid; width: 62px; height: 62px; margin: 0 auto; place-items: center; border-radius: 20px; background: var(--green); color: var(--blue-deep); }
 .state-symbol-quiet { background: #e7f0f6; font-size: 36px; font-weight: 700; }
 .question-footer { margin-top: 21px; color: var(--muted); text-align: center; font-size: 12px; }
+.question-signature { display: block; margin-top: 7px; color: #8794a3; font-family: var(--font-inter), Arial, sans-serif; font-size: 9px; font-weight: 500; letter-spacing: .02em; }
 
 .login-page { display: grid; min-height: 100svh; place-items: center; padding: 22px; background: radial-gradient(ellipse at 80% 10%, #dcebf3 0, transparent 45%), var(--tint); }
 .login-card { width: min(100%, 420px); padding: 28px; }
