@@ -27,7 +27,7 @@ export function AdminPanel() {
   const qrCanvas = useRef<HTMLDivElement>(null);
   const current = events.find((event) => event.id === selected);
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/+$/, "") ?? "";
-  const userLink = current && siteUrl ? `${siteUrl}/question?code=${encodeURIComponent(current.code)}` : "";
+  const userLink = current && siteUrl ? `${siteUrl}/user?code=${encodeURIComponent(current.code)}` : "";
 
   const loadEvents = useCallback(async () => {
     const result = await api("/api/admin/events"); setEvents(result.events ?? []); setFeaturedEventId(result.featuredEventId ?? null);

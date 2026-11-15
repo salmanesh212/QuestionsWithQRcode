@@ -6,15 +6,15 @@ Application web en français : le public pose des questions depuis son télépho
 
 ### 1. Page principale projetée — `/`
 
-Affiche en plein écran le titre et l’intervenant de l’événement mis en avant, un grand QR code et l’adresse lisible à scanner. L’adresse encodée est toujours absolue et construite depuis `NEXT_PUBLIC_SITE_URL`, suivie de `/question?code=...`. La page ne contient aucun lien ou accès à l’administration.
+Affiche en plein écran le titre et l’intervenant de l’événement mis en avant, un grand QR code et l’adresse lisible à scanner. L’adresse encodée est toujours absolue et construite depuis `NEXT_PUBLIC_SITE_URL`, suivie de `/user?code=...`. La page ne contient aucun lien ou accès à l’administration.
 
 L’événement mis en avant se choisit dans `/admin` avec le bouton **Afficher sur la page principale**. S’il n’y en a pas encore, l’événement le plus récemment créé est utilisé.
 
-### 2. Page question — `/question`
+### 2. Page question — `/user`
 
-Le QR ouvre `/question?code=CODE-EVENEMENT`. Le formulaire est mobile-first, sans compte, connexion ou captcha. Le participant écrit une question de 5 à 300 caractères, ajoute éventuellement son prénom, ou reste anonyme. Après l’envoi, une confirmation permet d’en poser une autre. La fermeture de réception affiche **Les questions sont closes**.
+Le QR ouvre `/user?code=CODE-EVENEMENT` (ou `/user` pour l’événement mis en avant). Le formulaire est mobile-first, sans compte, connexion ou captcha. Le participant écrit une question de 5 à 300 caractères, ajoute éventuellement son prénom, ou reste anonyme. Après l’envoi, une confirmation permet d’en poser une autre. La fermeture de réception affiche **Les questions sont closes**. Chaque question enregistrée apparaît ensuite dans `/admin` pour l’événement correspondant.
 
-La route historique `/e/[code]` redirige vers la nouvelle adresse `/question?code=...` afin de ne pas invalider d’anciens QR. La page ne comporte aucun lien vers l’administration.
+La route `/question` reste disponible pour compatibilité, et `/e/[code]` redirige vers `/question?code=...` afin de ne pas invalider d’anciens QR. La page ne comporte aucun lien vers l’administration.
 
 Les envois passent par une route API serveur. L’anti-spam vérifie un cookie d’appareil, une limite d’un envoi par 30 secondes et le maximum par appareil configurable pour chaque événement, un plafond IP de 10 envois en 10 minutes, un honeypot, une attente minimale de 3 secondes, la longueur et le contenu nettoyé de la question.
 
@@ -69,7 +69,7 @@ Pour tester le scan depuis un téléphone pendant le développement, configurez 
 
 1. Ouvrir `/admin` directement et se connecter.
 2. Créer l’événement, vérifier le titre et l’intervenant, puis le choisir pour l’affichage principal.
-3. Projeter `/` en plein écran : le QR et l’adresse `/question?code=...` apparaissent au centre. En alternative, l’admin peut télécharger le PNG pour une impression rapide ou le SVG pour une impression redimensionnable.
+3. Projeter `/` en plein écran : le QR et l’adresse `/user?code=...` apparaissent au centre. En alternative, l’admin peut télécharger le PNG pour une impression rapide ou le SVG pour une impression redimensionnable.
 4. Laisser la réception ouverte. Activer la modération préalable si chaque question doit être validée avant publication.
 5. Modérer les questions dans le tableau de bord. Utiliser l’export CSV si nécessaire. Ouvrir l’écran projecteur depuis l’admin et épingler une question approuvée.
 6. Fermer la réception à la fin de la conférence.
@@ -86,7 +86,8 @@ Pour tester le scan depuis un téléphone pendant le développement, configurez 
 ## Structure du projet
 
 - `src/app/page.tsx` : page principale projetée et QR absolu.
-- `src/app/question/page.tsx` : formulaire participant.
+- `src/app/user/page.tsx` : adresse publique portée par le QR.
+- `src/app/question/page.tsx` : alias compatible du formulaire participant.
 - `src/app/admin/page.tsx` et `src/components/admin-*` : administration protégée.
 - `src/app/ecran/page.tsx` et `src/components/screen-view.tsx` : affichage de la question épinglée.
 - `src/app/api` : API d’envoi, quotas, authentification et modération.

@@ -161,7 +161,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .projection-scan { flex-direction: column; gap: 23px; }
   .scan-copy { max-width: 450px; align-items: center; }
   .projection-content { gap: 30px; }
-  .admin-layout { grid-template-columns: 1fr; }
+  .admin-layout { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .admin-sidebar { position: static; }
   .admin-nav-wrap { display: block; overflow: hidden; border-radius: 15px; background: var(--blue-deep); box-shadow: var(--shadow-card); }
   .admin-nav-toggle { display: flex; align-items: center; justify-content: space-between; min-height: 48px; padding: 0 15px; color: white; cursor: pointer; font-size: 14px; font-weight: 700; list-style: none; }
@@ -173,26 +173,47 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .screen-event { text-align: left; }
 }
 @media (max-width: 520px) {
-  .projection-page { padding: 20px 18px 90px; }
+  .projection-page { min-height: 100svh; padding: 18px 16px 74px; }
   .projection-header { align-items: flex-start; }
   .projection-header .brand-logo { width: 56px; height: 56px; }
   .projection-mark { max-width: 120px; font-size: 17px; }
-  .projection-intro h1 { font-size: 34px; }
+  .projection-intro h1 { font-size: clamp(28px, 8vw, 34px); overflow-wrap: anywhere; }
   .qr-frame { padding: 9px; border-radius: 17px; }
   .qr-surface { width: min(74vw, 300px); }
+  .projection-scan { gap: 18px; }
+  .scan-copy { width: 100%; gap: 12px; }
+  .scan-icon { flex-basis: 40px; height: 40px; border-radius: 12px; }
   .scan-copy h2 { font-size: 22px; }
   .scan-copy p { font-size: 14px; }
-  .question-page { padding: 20px 14px; }
-  .question-form { gap: 17px; padding: 18px; }
+  .question-page { padding: max(16px, env(safe-area-inset-top)) 12px max(20px, env(safe-area-inset-bottom)); }
+  .question-shell { width: 100%; max-width: 440px; }
+  .question-header { gap: 10px; margin-bottom: 18px; }
+  .question-header .brand-lockup { padding-bottom: 12px; }
+  .question-header h1 { max-width: 100%; font-size: clamp(22px, 6.2vw, 28px); overflow-wrap: anywhere; }
+  .question-form { gap: 16px; padding: 16px; border-radius: 17px; }
+  .form-heading { gap: 10px; }
+  .form-heading h2 { font-size: 19px; }
+  .question-textarea { min-height: 142px; }
+  .anonymous-option { min-height: 44px; }
+  .question-state { padding: 28px 20px; border-radius: 17px; }
   .admin-topbar-inner, .admin-layout { width: min(100% - 24px, 1440px); }
   .admin-topbar-inner { min-height: 68px; }
   .admin-topbar .brand-logo { width: 43px; height: 43px; }
   .admin-topbar .brand-name { font-size: 14px; }
   .admin-topbar .brand-arabic { font-size: 12px; }
   .admin-topbar-actions > span { display: none; }
-  .admin-topbar-actions .btn { min-height: 40px; padding: 8px 10px; font-size: 13px; }
+  .admin-topbar-actions .btn { min-height: 44px; padding: 8px 10px; font-size: 13px; }
+  .admin-layout { gap: 12px; margin-top: 14px; }
+  .admin-sidebar, .admin-content { gap: 12px; }
+  .admin-content { min-width: 0; }
+  .admin-content > .panel, .admin-sidebar > .panel { min-width: 0; border-radius: 16px; }
+  .admin-nav-toggle { min-height: 48px; }
   .admin-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-nav a { display: grid; min-height: 44px; place-items: center; padding: 8px; font-size: 13px; }
+  .admin-content article .flex.flex-wrap > button { min-width: 44px; min-height: 44px; }
+  .admin-content #questions .flex.flex-wrap > select { min-height: 44px; flex: 1 1 135px; }
   .screen-page { padding: 28px 17px 74px; }
   .screen-header { gap: 20px; margin-bottom: 24px; }
   .screen-question { min-height: 42vh; border-radius: 21px; padding: 27px 18px; }
+  .screen-question-inner > p { font-size: clamp(25px, 7vw, 38px); }
 }
