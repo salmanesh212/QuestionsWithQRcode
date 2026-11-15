@@ -13,5 +13,15 @@ export async function getFeaturedEvent() {
   }
   const { data, error } = await supabase.from("events").select("*").order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (error) throw new Error("Impossible de charger les événements.");
-  return data as EventRecord | null;
+  if (data) return data as EventRecord;
+
+  // Un premier événement permet au QR /user d'être utilisable dès l'installation.
+  const initialEvent = { title: "Comité Social ESITH", speaker: "", code: "comite-social-esith", is_open: true };
+  const { data: created, error: createError } = await supabase.from("events").insert(initialEvent).select("*").single();
+  if (!createError && created) return created as EventRecord;
+
+  // Une requête concurrente peut avoir créé le même événement entre-temps.
+  const { data: concurrentEvent, error: retryError } = await supabase.from("events").select("*").eq("code", initialEvent.code).maybeSingle();
+  if (!retryError && concurrentEvent) return concurrentEvent as EventRecord;
+  throw new Error("Impossible de créer l’événement initial.");
 }
