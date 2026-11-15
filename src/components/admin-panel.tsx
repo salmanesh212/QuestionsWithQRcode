@@ -16,17 +16,20 @@ async function api(url: string, method = "GET", body?: unknown) {
 
 export function AdminPanel() {
   const [events, setEvents] = useState<EventRecord[]>([]); const [selected, setSelected] = useState("");
+  const [featuredEventId, setFeaturedEventId] = useState<string | null>(null);
   const [questions, setQuestions] = useState<QuestionRecord[]>([]); const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all"); const [sort, setSort] = useState<SortMode>("date"); const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false); const [error, setError] = useState("");
+  const [editingDetails, setEditingDetails] = useState(false);
+  const [detailsDraft, setDetailsDraft] = useState({ title: "", speaker: "" });
   const [draft, setDraft] = useState({ title: "", speaker: "", date: "", code: "" });
   const qrCanvas = useRef<HTMLDivElement>(null);
   const current = events.find((event) => event.id === selected);
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "");
-  const userLink = current ? `${appUrl}/e/${current.code}` : "";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/+$/, "") ?? "";
+  const userLink = current && siteUrl ? `${siteUrl}/question?code=${encodeURIComponent(current.code)}` : "";
 
   const loadEvents = useCallback(async () => {
-    const result = await api("/api/admin/events"); setEvents(result.events ?? []);
+    const result = await api("/api/admin/events"); setEvents(result.events ?? []); setFeaturedEventId(result.featuredEventId ?? null);
     setSelected((old: string) => old || result.events?.[0]?.id || "");
   }, []);
   const loadQuestions = useCallback(async () => {
@@ -50,9 +53,13 @@ export function AdminPanel() {
     catch (e) { setError(e instanceof Error ? e.message : "Création impossible."); }
   }
   async function changeEvent(values: Record<string, unknown>) {
-    if (!current) return;
-    try { const result = await api("/api/admin/events", "PATCH", { id: current.id, ...values }); setEvents((list) => list.map((event) => event.id === current.id ? result.event : event)); }
-    catch (e) { setError(e instanceof Error ? e.message : "Modification impossible."); }
+    if (!current) return false;
+    try {
+      const result = await api("/api/admin/events", "PATCH", { id: current.id, ...values });
+      setEvents((list) => list.map((event) => event.id === current.id ? result.event : event));
+      if (result.featuredEventId !== undefined) setFeaturedEventId(result.featuredEventId);
+      return true;
+    } catch (e) { setError(e instanceof Error ? e.message : "Modification impossible."); return false; }
   }
   async function act(question: QuestionRecord, values?: Record<string, unknown>, remove = false) {
     try { await api("/api/admin/questions", remove ? "DELETE" : "PATCH", remove ? { id: question.id } : { id: question.id, ...values }); await loadQuestions(); }
@@ -73,6 +80,7 @@ export function AdminPanel() {
     } catch (e) { setError(e instanceof Error ? e.message : "Export impossible."); }
   }
   function downloadQr(format: "png" | "svg") {
+    if (!userLink) { setError("Configurez NEXT_PUBLIC_SITE_URL pour créer le QR code public."); return; }
     const anchor = document.createElement("a");
     if (format === "png") {
       const canvas = qrCanvas.current?.querySelector("canvas"); if (!canvas) return;
@@ -93,13 +101,14 @@ export function AdminPanel() {
         {showCreate && <form onSubmit={createEvent} className="mb-4 space-y-2 rounded-xl bg-[#f4f6fa] p-3"><input className="field" required placeholder="Titre de la conférence" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })}/><input className="field" placeholder="Intervenant" value={draft.speaker} onChange={(e) => setDraft({ ...draft, speaker: e.target.value })}/><input className="field" type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })}/><input className="field" placeholder="Code URL (facultatif)" value={draft.code} onChange={(e) => setDraft({ ...draft, code: e.target.value })}/><button className="btn w-full">Créer</button></form>}
         <div className="space-y-1">{events.map((event) => <button key={event.id} onClick={() => setSelected(event.id)} className={`w-full rounded-xl px-3 py-3 text-left ${selected === event.id ? "bg-[#eaf0fa] text-[#1f4f95]" : "hover:bg-slate-50"}`}><div className="truncate text-sm font-bold">{event.title}</div><div className="mt-1 text-xs text-[#748399]">{event.speaker || "Sans intervenant"}</div></button>)}{!events.length && <p className="py-4 text-sm text-[#76859a]">Aucun événement. Créez le premier.</p>}</div>
       </section>
-      {current && <section className="panel p-4"><h2 className="mb-3 flex items-center gap-2 font-bold"><QrCode size={17}/> QR de l’événement</h2><div ref={qrCanvas} className="mx-auto w-fit rounded-lg border bg-white p-2"><QRCodeCanvas value={userLink} size={172} level="H" includeMargin/><QRCodeSVG value={userLink} size={172} level="H" includeMargin className="hidden"/></div><p className="mt-2 break-all text-center text-xs text-[#64748b]">{userLink}</p><div className="mt-3 grid grid-cols-2 gap-2"><button className="btn btn-secondary px-2 text-xs" onClick={() => downloadQr("png")}><Download size={14}/> PNG</button><button className="btn btn-secondary px-2 text-xs" onClick={() => downloadQr("svg")}><Download size={14}/> SVG</button></div><a className="mt-2 flex items-center justify-center gap-1 py-2 text-xs font-bold text-[#2256a4]" href={`/ecran?code=${current.code}`} target="_blank"><ExternalLink size={13}/> Ouvrir le projecteur</a></section>}
+      {current && <section className="panel p-4"><h2 className="mb-3 flex items-center gap-2 font-bold"><QrCode size={17}/> QR de l’événement</h2>{userLink ? <><div ref={qrCanvas} className="mx-auto w-fit rounded-lg border bg-white p-2"><QRCodeCanvas value={userLink} size={172} level="H" includeMargin/><QRCodeSVG value={userLink} size={172} level="H" includeMargin className="hidden"/></div><p className="mt-2 break-all text-center text-xs text-[#64748b]">{userLink}</p><div className="mt-3 grid grid-cols-2 gap-2"><button className="btn btn-secondary px-2 text-xs" onClick={() => downloadQr("png")}><Download size={14}/> PNG</button><button className="btn btn-secondary px-2 text-xs" onClick={() => downloadQr("svg")}><Download size={14}/> SVG</button></div></> : <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">Configurez NEXT_PUBLIC_SITE_URL pour créer un QR absolu.</p>}<a className="mt-2 flex items-center justify-center gap-1 py-2 text-xs font-bold text-[#2256a4]" href={`/ecran?code=${current.code}`} target="_blank"><ExternalLink size={13}/> Ouvrir le projecteur</a></section>}
       </aside>
 
       <section className="min-w-0 space-y-5">
         {error && <div role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}<button className="float-right" onClick={() => setError("")}>×</button></div>}
         {current ? <>
-          <div className="panel flex flex-wrap items-center justify-between gap-4 p-5"><div><p className="text-xs font-bold uppercase tracking-wider text-[#718198]">Événement sélectionné</p><h1 className="mt-1 text-xl font-bold">{current.title}</h1><p className="mt-1 text-sm text-[#68798e]">{current.speaker || "Intervenant non renseigné"}{current.event_date ? ` · ${new Date(`${current.event_date}T12:00:00`).toLocaleDateString("fr-FR")}` : ""}</p></div><div className="flex flex-wrap gap-2"><button className={`btn ${current.is_open ? "" : "btn-secondary"}`} onClick={() => void changeEvent({ is_open: !current.is_open })}>{current.is_open ? "Réception ouverte" : "Réception fermée"}</button><button className="btn btn-secondary" onClick={() => void exportCsv()}><Download size={15}/> CSV</button><button className="btn btn-danger px-3" title="Supprimer l’événement" onClick={() => void removeEvent()}><Trash2 size={16}/></button></div></div>
+          <div className="panel flex flex-wrap items-center justify-between gap-4 p-5"><div><p className="text-xs font-bold uppercase tracking-wider text-[#718198]">Événement sélectionné</p><h1 className="mt-1 text-xl font-bold">{current.title}</h1><p className="mt-1 text-sm text-[#68798e]">{current.speaker || "Intervenant non renseigné"}{current.event_date ? ` · ${new Date(`${current.event_date}T12:00:00`).toLocaleDateString("fr-FR")}` : ""}</p></div><div className="flex flex-wrap gap-2"><button className="btn btn-secondary" onClick={() => { setDetailsDraft({ title: current.title, speaker: current.speaker }); setEditingDetails((value) => !value); }}>Modifier titre et intervenant</button><button className="btn btn-secondary" disabled={featuredEventId === current.id} onClick={() => void changeEvent({ featured: true })}>{featuredEventId === current.id ? "Affiché sur la page principale" : "Afficher sur la page principale"}</button><button className={`btn ${current.is_open ? "" : "btn-secondary"}`} onClick={() => void changeEvent({ is_open: !current.is_open })}>{current.is_open ? "Réception ouverte" : "Réception fermée"}</button><button className="btn btn-secondary" onClick={() => void exportCsv()}><Download size={15}/> CSV</button><button className="btn btn-danger px-3" title="Supprimer l’événement" onClick={() => void removeEvent()}><Trash2 size={16}/></button></div></div>
+          {editingDetails && <form className="panel grid gap-3 p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end" onSubmit={async (e) => { e.preventDefault(); if (await changeEvent(detailsDraft)) setEditingDetails(false); }}><label><span className="label">Titre de la conférence</span><input className="field" required maxLength={160} value={detailsDraft.title} onChange={(e) => setDetailsDraft({ ...detailsDraft, title: e.target.value })}/></label><label><span className="label">Intervenant</span><input className="field" maxLength={120} value={detailsDraft.speaker} onChange={(e) => setDetailsDraft({ ...detailsDraft, speaker: e.target.value })}/></label><button className="btn">Enregistrer</button></form>}
           <div className="grid gap-3 sm:grid-cols-3">{[["Questions reçues", stats.all], ["Approuvées", stats.approved], ["Répondues", stats.answered]].map(([label, value]) => <div className="panel p-4" key={String(label)}><div className="text-sm text-[#718198]">{label}</div><div className="mt-1 text-2xl font-bold">{value}</div></div>)}</div>
           <div className="panel flex flex-wrap items-center justify-between gap-4 p-4"><label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={current.premoderation} onChange={(e) => void changeEvent({ premoderation: e.target.checked })} className="h-4 w-4 accent-[#2256a4]"/> Modération préalable</label><label className="flex items-center gap-2 text-sm">Maximum par appareil <input className="field w-20" type="number" min={1} max={100} value={current.max_per_device} onChange={(e) => void changeEvent({ max_per_device: Number(e.target.value) })}/></label></div>
           <div className="panel p-4"><div className="flex flex-wrap gap-3"><div className="relative min-w-48 flex-1"><Search size={16} className="absolute left-3 top-3 text-[#8090a3]"/><input className="field pl-9" placeholder="Rechercher une question…" value={search} onChange={(e) => setSearch(e.target.value)}/></div><select className="field w-auto min-w-36" value={filter} onChange={(e) => setFilter(e.target.value)}><option value="all">Tous les statuts</option><option value="pending">En attente</option><option value="approved">Approuvées</option><option value="hidden">Masquées</option><option value="answered">Répondues</option></select><select className="field w-auto" value={sort} onChange={(e) => setSort(e.target.value as SortMode)}><option value="date">Plus récentes</option><option value="votes">Votes</option></select></div>

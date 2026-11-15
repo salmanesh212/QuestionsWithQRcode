@@ -47,6 +47,13 @@ create table if not exists public.ip_limits (
   question_count integer not null default 0,
   primary key (event_id, ip_hash)
 );
+create table if not exists public.admin_login_attempts (
+  ip_hash text primary key,
+  failed_attempts integer not null default 0,
+  window_started_at timestamptz not null default now(),
+  blocked_until timestamptz,
+  updated_at timestamptz not null default now()
+);
 
 create index if not exists questions_event_created_idx on public.questions(event_id, created_at desc);
 create index if not exists questions_event_status_idx on public.questions(event_id, status);
@@ -59,6 +66,7 @@ alter table public.questions enable row level security;
 alter table public.settings enable row level security;
 alter table public.device_limits enable row level security;
 alter table public.ip_limits enable row level security;
+alter table public.admin_login_attempts enable row level security;
 
 -- La clé anon ne peut jamais écrire. Les écrans publics lisent uniquement les
 -- événements ouverts et les questions approuvées. Les routes serveur utilisent
@@ -69,7 +77,7 @@ drop policy if exists "Questions approuvées lisibles" on public.questions;
 create policy "Questions approuvées lisibles" on public.questions for select to anon, authenticated using (
   status = 'approved'
 );
-revoke all on public.events, public.questions, public.settings, public.device_limits, public.ip_limits from anon, authenticated;
+revoke all on public.events, public.questions, public.settings, public.device_limits, public.ip_limits, public.admin_login_attempts from anon, authenticated;
 grant select on public.events, public.questions to anon, authenticated;
 
 -- L'exécution atomique applique 1 question / 30 secondes et 3 par défaut
@@ -103,6 +111,38 @@ end;
 $$;
 revoke all on function public.check_question_limits(uuid, text, text, integer) from public, anon, authenticated;
 grant execute on function public.check_question_limits(uuid, text, text, integer) to service_role;
+
+-- Verrouillage durable du login admin: 5 échecs sur une fenêtre de 15 minutes
+-- entraînent un blocage de 15 minutes pour l'empreinte IP pseudonymisée.
+create or replace function public.record_admin_login_attempt(p_ip_hash text, p_password_valid boolean)
+returns integer
+language plpgsql security definer set search_path = public as $$
+declare
+  v_attempt admin_login_attempts%rowtype;
+  v_now timestamptz := now();
+begin
+  perform pg_advisory_xact_lock(hashtextextended('admin:' || p_ip_hash, 0));
+  insert into admin_login_attempts(ip_hash) values (p_ip_hash) on conflict do nothing;
+  select * into v_attempt from admin_login_attempts where ip_hash = p_ip_hash for update;
+  if v_attempt.blocked_until is not null and v_attempt.blocked_until > v_now then return -1; end if;
+  if v_attempt.window_started_at <= v_now - interval '15 minutes' then
+    update admin_login_attempts set failed_attempts = 0, window_started_at = v_now, blocked_until = null where ip_hash = p_ip_hash;
+    v_attempt.failed_attempts := 0;
+  end if;
+  if p_password_valid then
+    update admin_login_attempts set failed_attempts = 0, window_started_at = v_now, blocked_until = null, updated_at = v_now where ip_hash = p_ip_hash;
+    return 1;
+  end if;
+  v_attempt.failed_attempts := v_attempt.failed_attempts + 1;
+  update admin_login_attempts set failed_attempts = v_attempt.failed_attempts,
+    blocked_until = case when v_attempt.failed_attempts >= 5 then v_now + interval '15 minutes' else null end,
+    updated_at = v_now where ip_hash = p_ip_hash;
+  if v_attempt.failed_attempts >= 5 then return -1; end if;
+  return 0;
+end;
+$$;
+revoke all on function public.record_admin_login_attempt(text, boolean) from public, anon, authenticated;
+grant execute on function public.record_admin_login_attempt(text, boolean) to service_role;
 
 -- Supabase Realtime: active les changements PostgreSQL consommés par le projecteur
 -- et l'administration. Les règles SELECT ci-dessus restent appliquées.

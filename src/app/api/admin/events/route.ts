@@ -7,7 +7,8 @@ export async function GET() {
   if (!(await isAdmin())) return NextResponse.json({ error: "Accès refusé." }, { status: 401 });
   const { data, error } = await supabaseAdmin().from("events").select("*").order("created_at", { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ events: data });
+  const { data: featured } = await supabaseAdmin().from("settings").select("value").eq("key", "featured_event_id").maybeSingle();
+  return NextResponse.json({ events: data, featuredEventId: typeof featured?.value === "string" ? featured.value : null });
 }
 
 export async function POST(request: Request) {
@@ -31,7 +32,13 @@ export async function PATCH(request: Request) {
   if (typeof values.max_per_device === "number") values.max_per_device = Math.max(1, Math.min(100, values.max_per_device));
   const { data, error } = await supabaseAdmin().from("events").update(values).eq("id", body.id).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  return NextResponse.json({ event: data });
+  let featuredEventId: string | null | undefined;
+  if (body.featured === true) {
+    const { error: featureError } = await supabaseAdmin().from("settings").upsert({ key: "featured_event_id", value: body.id }, { onConflict: "key" });
+    if (featureError) return NextResponse.json({ error: "L’événement n’a pas pu être affiché sur la page principale." }, { status: 500 });
+    featuredEventId = body.id;
+  }
+  return NextResponse.json({ event: data, featuredEventId });
 }
 
 export async function DELETE(request: Request) {

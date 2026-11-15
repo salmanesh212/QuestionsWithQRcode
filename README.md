@@ -1,83 +1,94 @@
-# Comité Social ESITH — Questions en direct
+# Comité Social ESITH — Questions de conférence
 
-Application web en français permettant au public de poser une question depuis un QR code, sans compte ni connexion. L’équipe du Comité Social gère les événements et modère les questions depuis `/admin`. L’écran plein format se trouve sur `/ecran?code=CODE-EVENEMENT`.
+Application web en français : le public pose des questions depuis son téléphone, sans compte. L’application est organisée en trois parties distinctes.
 
-## Fonctionnalités
+## Les trois parties
 
-- Formulaire mobile public avec prénom facultatif, anonymat, compteur de caractères et confirmation d’envoi.
-- Modération préalable facultative, approbation, masquage, suppression, épinglage et statut « répondue ».
-- Actualisation Supabase Realtime pour les questions approuvées et rafraîchissement de secours régulier côté administration pour les files en attente.
-- QR code d’événement exportable en PNG ou SVG, CSV des questions et statistiques simples.
-- Anti-spam serveur : cookie appareil anonyme, attente minimale de 3 secondes, champ honeypot, 1 envoi par 30 secondes, limite par appareil réglable et plafond IP de 10 envois par tranche de 10 minutes.
-- Pas de Supabase Auth. L’administration utilise un mot de passe et un cookie de session signé, limité à 12 heures.
+### 1. Page principale projetée — `/`
 
-## Prérequis
+Affiche en plein écran le titre et l’intervenant de l’événement mis en avant, un grand QR code et l’adresse lisible à scanner. L’adresse encodée est toujours absolue et construite depuis `NEXT_PUBLIC_SITE_URL`, suivie de `/question?code=...`. La page ne contient aucun lien ou accès à l’administration.
 
-- Node.js 20 ou plus récent et npm.
-- Un projet Supabase gratuit.
+L’événement mis en avant se choisit dans `/admin` avec le bouton **Afficher sur la page principale**. S’il n’y en a pas encore, l’événement le plus récemment créé est utilisé.
 
-## Installation locale
+### 2. Page question — `/question`
 
-```bash
+Le QR ouvre `/question?code=CODE-EVENEMENT`. Le formulaire est mobile-first, sans compte, connexion ou captcha. Le participant écrit une question de 5 à 300 caractères, ajoute éventuellement son prénom, ou reste anonyme. Après l’envoi, une confirmation permet d’en poser une autre. La fermeture de réception affiche **Les questions sont closes**.
+
+La route historique `/e/[code]` redirige vers la nouvelle adresse `/question?code=...` afin de ne pas invalider d’anciens QR. La page ne comporte aucun lien vers l’administration.
+
+Les envois passent par une route API serveur. L’anti-spam vérifie un cookie d’appareil, une limite d’un envoi par 30 secondes et le maximum par appareil configurable pour chaque événement, un plafond IP de 10 envois en 10 minutes, un honeypot, une attente minimale de 3 secondes, la longueur et le contenu nettoyé de la question.
+
+### 3. Administration cachée — `/admin`
+
+Cette URL n’est liée depuis aucune page publique. Elle demande `ADMIN_PASSWORD` et utilise un cookie de session signé, `httpOnly`, `SameSite=Strict` et `Secure` en production, valable 12 heures. Cinq erreurs de mot de passe depuis la même adresse IP pseudonymisée bloquent les essais pendant 15 minutes. La page porte `noindex` et `/robots.txt` exclut `/admin` et `/api/`.
+
+L’administration permet de créer des événements, modifier titre/intervenant, choisir l’événement projeté, créer/imprimer un QR en PNG ou SVG, consulter les questions avec actualisation en direct et rafraîchissement de secours, les approuver/masquer/supprimer/épingler/marquer comme répondues, ouvrir ou fermer la réception, activer la modération préalable, régler le quota par appareil, exporter le CSV et ouvrir `/ecran?code=...` pour projeter une question épinglée.
+
+## Installation et commandes
+
+Prérequis : Node.js 20+ et npm. Pour le développement local :
+
+```powershell
 npm install
 Copy-Item .env.example .env.local
-```
-
-Renseignez les valeurs de `.env.local` (voir ci-dessous), puis démarrez le serveur :
-
-```bash
 npm run dev
 ```
 
-Visitez [http://localhost:3000](http://localhost:3000), puis ouvrez `/admin` pour créer un événement.
+Renseignez les variables ci-dessous et appliquez `supabase/schema.sql` avant d’utiliser les pages connectées aux données. Contrôles et serveur de production :
 
-Commandes de production : `npm run lint`, `npm run build`, puis `npm start`.
+```bash
+npm run lint
+npm run build
+npm start
+```
 
 ## Variables d’environnement
 
-| Variable | Usage |
+| Variable | Utilisation |
 | --- | --- |
+| `NEXT_PUBLIC_SITE_URL` | Origine HTTPS publique du site, sans barre oblique finale, par exemple `https://comite-social.vercel.app`. Le QR est construit depuis cette valeur, jamais depuis `localhost`. |
 | `NEXT_PUBLIC_SUPABASE_URL` | URL du projet Supabase. |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Clé publique anon, utilisée uniquement par le navigateur pour Realtime/lecture publique. |
-| `SUPABASE_SERVICE_ROLE_KEY` | Clé serveur pour les routes Next.js. Ne jamais la publier ni la préfixer `NEXT_PUBLIC_`. |
-| `ADMIN_PASSWORD` | Mot de passe unique de l’administration. |
-| `SESSION_SECRET` | Valeur aléatoire longue utilisée pour signer les cookies et pseudonymiser les limites. |
-| `NEXT_PUBLIC_APP_URL` | Origine du site, par exemple `http://localhost:3000` ou l’URL Vercel de production. Sans barre oblique finale. |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Clé publique anon, limitée par les règles RLS pour lecture/Realtime. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Clé secrète serveur, uniquement pour les routes et pages serveur. Ne jamais l’exposer dans le navigateur. |
+| `ADMIN_PASSWORD` | Mot de passe fort pour `/admin`. |
+| `SESSION_SECRET` | Secret aléatoire d’au moins 32 caractères pour signer la session et créer les empreintes pseudonymisées. |
 
-Générez un secret local avec `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`. `.env.local` est ignoré par Git.
+Générez un secret avec `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`. `.env.local` est ignoré par Git.
 
-## ÉTAPES MANUELLES POUR MOI
+Pour tester le scan depuis un téléphone pendant le développement, configurez `NEXT_PUBLIC_SITE_URL` avec une URL HTTPS publiquement accessible qui pointe vers votre instance (par exemple un tunnel de développement). Ne mettez pas `localhost` dans cette variable : le téléphone ne pourrait pas joindre l’ordinateur via cette adresse.
 
-1. Créer un compte sur Supabase et un projet dans la région la plus proche des participants (Maroc/Europe si disponible). Garder l’URL du projet et ses clés à portée de main.
-2. Dans Supabase, ouvrir **SQL Editor**, créer une requête, coller le contenu de `supabase/schema.sql`, puis l’exécuter. Vérifier que les tables `events`, `questions`, `settings`, `device_limits` et `ip_limits` sont créées.
-3. Dans **Project Settings → API**, copier l’URL, la clé `anon` publique et la clé `service_role` secrète. Dans le dossier du projet, copier `.env.example` vers `.env.local` puis renseigner toutes les variables. Choisir un vrai mot de passe admin et un `SESSION_SECRET` aléatoire.
-4. Lancer localement `npm install`, `npm run dev`, vérifier `/admin` et créer un événement de test. Pour les usages locaux sans Supabase configuré, les pages nécessitent néanmoins un projet fonctionnel.
-5. Sur Vercel, créer un nouveau projet en important ce dossier (ou son dépôt Git), framework **Next.js**, puis ajouter les six variables d’environnement dans **Settings → Environment Variables** pour Production, Preview et Development selon le besoin. `NEXT_PUBLIC_APP_URL` doit être l’URL publique exacte de la production.
-6. Déployer sur Vercel. Tester le lien QR sur un téléphone en réseau mobile : envoyer une question, la modérer dans `/admin`, puis épingler une question et vérifier `/ecran?code=...`.
-7. Pour un domaine personnalisé, le configurer dans Vercel, mettre à jour `NEXT_PUBLIC_APP_URL`, puis redéployer afin que les QR codes utilisent la bonne adresse.
+## Supabase et déploiement Vercel
+
+1. Créez un projet Supabase, puis dans **SQL Editor**, exécutez le fichier `supabase/schema.sql`. Il crée les tables `events`, `questions`, `settings`, les tables de quotas et de tentatives admin, les index, la fonction SQL de limitation et les règles RLS. Si le schéma avait déjà été appliqué, réexécutez le fichier pour installer la limitation des tentatives admin.
+2. Dans **Project Settings → API**, copiez l’URL du projet, la clé `anon` et la clé `service_role`. Renseignez les variables dans `.env.local` pour le développement.
+3. Dans Vercel, importez le dépôt comme projet **Next.js** et ajoutez les six variables du tableau aux environnements appropriés. `NEXT_PUBLIC_SITE_URL` doit être l’URL HTTPS finale utilisée par les participants. Redéployez après une modification de cette variable.
+4. Ouvrez `/admin` directement, connectez-vous, créez l’événement, modifiez le titre/intervenant si besoin, puis cliquez **Afficher sur la page principale**. Vérifiez `/` et scannez le QR avec un téléphone hors Wi-Fi local.
+5. En production, testez l’envoi, la modération sans rechargement, l’épinglage sur `/ecran?code=...`, puis la fermeture de réception.
 
 ## Guide du jour J
 
-1. Ouvrir `/admin` et entrer le mot de passe configuré dans `ADMIN_PASSWORD`.
-2. Créer l’événement avec son titre, le nom de l’intervenant et sa date. Le code URL est généré depuis le titre, modifiable à la création, et doit être unique.
-3. Dans la carte QR, télécharger le PNG pour une impression simple ou le SVG pour une impression nette à toute taille. Scanner le QR imprimé et vérifier que le formulaire indique le bon événement.
-4. Laisser la réception ouverte. Activer **Modération préalable** si les questions doivent être validées avant publication. Les limites par appareil sont réglables à partir de 1 question.
-5. Pendant la conférence, approuver les questions, les masquer, les épingler, les marquer comme répondues ou les supprimer. Utiliser la recherche, le filtre et le tri par votes/date. Exporter les questions en CSV au besoin.
-6. Ouvrir **Ouvrir le projecteur**, mettre le navigateur en plein écran (F11) et épingler une question approuvée. L’écran se met à jour en direct.
-7. Fermer la réception à la fin. La page des participants affichera alors « Les questions sont closes ».
+1. Ouvrir `/admin` directement et se connecter.
+2. Créer l’événement, vérifier le titre et l’intervenant, puis le choisir pour l’affichage principal.
+3. Projeter `/` en plein écran : le QR et l’adresse `/question?code=...` apparaissent au centre. En alternative, l’admin peut télécharger le PNG pour une impression rapide ou le SVG pour une impression redimensionnable.
+4. Laisser la réception ouverte. Activer la modération préalable si chaque question doit être validée avant publication.
+5. Modérer les questions dans le tableau de bord. Utiliser l’export CSV si nécessaire. Ouvrir l’écran projecteur depuis l’admin et épingler une question approuvée.
+6. Fermer la réception à la fin de la conférence.
 
 ## Hypothèses et limites
 
-- Les quotas IP sont partagés par événement et utilisent `x-forwarded-for`, comme transmis par Vercel. Derrière un proxy différent, vérifier que cet en-tête est fiable.
-- Les compteurs reposent sur des tables Supabase et une fonction SQL atomique afin de fonctionner sur Vercel sans stockage local.
-- Le filtre d’injures est volontairement limité à une petite liste française modifiable dans `src/lib/utils.ts` ; il faut l’adapter au contexte du club.
-- Les questions publiques ne peuvent être lues qu’après approbation, et seulement tant que l’événement reste ouvert. Le tableau de bord utilise la clé serveur via ses routes API.
-- La clé service role contourne RLS : la stocker exclusivement dans les variables serveur Vercel et dans `.env.local`, jamais dans le navigateur ni dans Git.
-- Le vote est affiché à titre de statistique mais aucun vote public n’est exposé dans cette première version.
+- L’événement projeté est un réglage global : un seul événement apparaît sur `/` à la fois. Sans sélection explicite, le plus récent est utilisé.
+- Les limites reposent sur des tables et fonctions SQL atomiques Supabase pour fonctionner en serverless sur Vercel. Les adresses IP sont hachées avec `SESSION_SECRET`; elles ne sont pas stockées en clair. Vercel doit fournir un `x-forwarded-for` fiable.
+- Le verrouillage du mot de passe est partagé par adresse IP (après hachage) et nécessite le schéma SQL à jour. Des personnes partageant la même IP partagent aussi ce verrouillage.
+- Le filtre de mots inappropriés est une liste française modifiable dans `src/lib/utils.ts`; il peut être adapté au contexte de l’événement.
+- Les lectures publiques Supabase sont limitées aux questions approuvées. Toutes les écritures passent par les routes serveur avec la clé `service_role`.
+- Le tri par votes et le compteur existent dans l’admin, mais cette version n’expose pas de vote public.
 
-## Structure
+## Structure du projet
 
-- `src/app`: pages App Router et API.
-- `src/components`: formulaires et interfaces client.
-- `src/lib`: accès Supabase, session admin et utilitaires.
-- `supabase/schema.sql`: schéma, index, RLS et fonction de quotas.
+- `src/app/page.tsx` : page principale projetée et QR absolu.
+- `src/app/question/page.tsx` : formulaire participant.
+- `src/app/admin/page.tsx` et `src/components/admin-*` : administration protégée.
+- `src/app/ecran/page.tsx` et `src/components/screen-view.tsx` : affichage de la question épinglée.
+- `src/app/api` : API d’envoi, quotas, authentification et modération.
+- `src/lib` : clients Supabase, session, sélection de l’événement et utilitaires.
+- `supabase/schema.sql` : tables, index, RLS, Realtime et limites atomiques.

@@ -7,9 +7,12 @@ export function AdminLogin() {
   const [password, setPassword] = useState(""); const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
   async function login(e: React.FormEvent) {
     e.preventDefault(); setBusy(true); setError("");
-    const res = await fetch("/api/admin/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password }) });
-    setBusy(false);
-    if (res.ok) window.location.reload(); else setError("Mot de passe incorrect.");
+    try {
+      const res = await fetch("/api/admin/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password }) });
+      const result = await res.json().catch(() => ({}));
+      if (res.ok) window.location.reload(); else setError(result.error ?? "Mot de passe incorrect.");
+    } catch { setError("La connexion est indisponible. Réessayez."); }
+    finally { setBusy(false); }
   }
   return <main className="grid min-h-screen place-items-center p-5"><form onSubmit={login} className="panel w-full max-w-sm p-8">
     <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[#e8eef9] text-[#2256a4]"><LockKeyhole/></div>
