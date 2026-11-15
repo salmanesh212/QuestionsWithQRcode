@@ -92,3 +92,20 @@ Pour tester le scan depuis un téléphone pendant le développement, configurez 
 - `src/app/api` : API d’envoi, quotas, authentification et modération.
 - `src/lib` : clients Supabase, session, sélection de l’événement et utilitaires.
 - `supabase/schema.sql` : tables, index, RLS, Realtime et limites atomiques.
+
+## Refonte de l’interface (novembre 2026)
+
+Hypothèses retenues : le logo joint au brief est la source de marque à utiliser et a été converti en PNG pour l’interface. Le fichier source fourni est un JPEG compressé ; le relevé des aplats donne un bleu dominant `#02557D` et un vert `#C0D800`. Le bleu profond `#0A3F5F` est conservé pour les titres et les textes sur fond vert afin de maintenir le contraste. Le vert sert d’accent ou de fond de bouton, jamais de texte sur blanc. Les polices Poppins, Inter et Cairo sont chargées avec `next/font`.
+
+La navigation d’administration est composée de liens d’ancrage vers les sections déjà prises en charge. Les opérations d’événement, les QR, l’export, les règles de modération et les flux Realtime continuent d’utiliser les routes API et clients existants. Aucun endpoint ni schéma de données n’a été modifié dans cette passe de présentation.
+
+Fichiers modifiés ou ajoutés pour cette passe :
+
+- `public/logo.png` : logo fourni converti en PNG.
+- `src/app/globals.css` : tokens, composants visuels, responsive, focus, mouvements réduits et styles des trois zones.
+- `src/app/layout.tsx` : polices et icônes globales.
+- `src/app/page.tsx` : écran QR de projection.
+- `src/app/question/page.tsx` et `src/components/participant-form.tsx` : en-tête, formulaire mobile, états accessibles et SEO noindex.
+- `src/components/admin-login.tsx` et `src/components/admin-panel.tsx` : identité de connexion et navigation admin responsive.
+- `src/components/screen-view.tsx` et `src/app/ecran/page.tsx` : écran question plein format.
+- `src/components/brand.tsx` : identité de marque et décoration en vagues.

@@ -1,12 +1,12 @@
 import Image from "next/image";
 
-export function Brand({ compact = false, light = false }: { compact?: boolean; light?: boolean }) {
+export function Brand({ compact = false, light = false, showArabic = true }: { compact?: boolean; light?: boolean; showArabic?: boolean }) {
   return (
     <div className={`brand-lockup${compact ? " brand-lockup-compact" : ""}${light ? " brand-lockup-light" : ""}`}>
       <Image className="brand-logo" src="/logo.png" width={88} height={88} alt="" priority />
       <div className="brand-copy">
         <span className="brand-name">Comité Social <span>ESITH</span></span>
-        <span lang="ar" dir="rtl" className="brand-arabic">اللجنة الاجتماعية</span>
+        {showArabic && <span lang="ar" dir="rtl" className="brand-arabic">اللجنة الاجتماعية</span>}
       </div>
     </div>
   );
