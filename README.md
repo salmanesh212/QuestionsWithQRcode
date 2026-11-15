@@ -1,32 +1,61 @@
-# Comité Social ESITH — Questions de conférence
+# QR Questions — Questions et QCM interactifs
 
-Application web en français : le public pose des questions depuis son téléphone, sans compte. L’application est organisée en trois parties distinctes.
+Application web générique qui permet à un public de scanner un QR code pour poser
+une question, participer à un QCM ou contribuer à une discussion depuis son
+téléphone, sans compte ni connexion.
 
-## Les trois parties
+Le projet n'est lié à aucun club, école ou événement particulier. Il peut être
+utilisé pour une conférence, une formation, un cours, un atelier, une réunion,
+un événement associatif ou toute autre activité nécessitant des questions
+interactives. Le nom, le logo, les couleurs et les textes peuvent être adaptés
+au thème de chaque organisation.
 
-### 1. Page principale projetée — `/`
+## Fonctionnement
 
-Affiche en plein écran le titre et l’intervenant de l’événement mis en avant, un grand QR code et l’adresse lisible à scanner. L’adresse encodée est toujours absolue et construite depuis `NEXT_PUBLIC_SITE_URL`, suivie de `/user?code=...`. La page ne contient aucun lien ou accès à l’administration.
+### 1. Écran principal — `/`
 
-L’événement mis en avant se choisit dans `/admin` avec le bouton **Afficher sur la page principale**. S’il n’y en a pas encore, l’événement le plus récemment créé est utilisé.
+Affiche le titre de l'activité, un QR code et l'adresse publique à scanner.
+L'adresse est construite depuis `NEXT_PUBLIC_SITE_URL` et pointe vers le
+formulaire participant de l'événement sélectionné.
 
-### 2. Page question — `/user`
+### 2. Formulaire participant — `/user`
 
-Le QR ouvre `/user?code=CODE-EVENEMENT` (ou `/user` pour l’événement mis en avant). Le formulaire est mobile-first, sans compte, connexion ou captcha. Le participant écrit une question de 5 à 300 caractères, ajoute éventuellement son prénom, ou reste anonyme. Après l’envoi, une confirmation permet d’en poser une autre. La fermeture de réception affiche **Les questions sont closes**. Chaque question enregistrée apparaît ensuite dans `/admin` pour l’événement correspondant.
+Le participant scanne le QR code, écrit une question de 5 à 300 caractères et
+peut ajouter son prénom ou rester anonyme. Le formulaire est mobile-first et
+ne demande aucun compte. La route `/question` reste disponible comme alias de
+compatibilité.
 
-La route `/question` reste disponible pour compatibilité, et `/e/[code]` redirige vers `/question?code=...` afin de ne pas invalider d’anciens QR. La page ne comporte aucun lien vers l’administration.
+### 3. Administration — `/admin`
 
-Les envois passent par une route API serveur. L’anti-spam vérifie un cookie d’appareil, une limite d’un envoi par 30 secondes et le maximum par appareil configurable pour chaque événement, un plafond IP de 10 envois en 10 minutes, un honeypot, une attente minimale de 3 secondes, la longueur et le contenu nettoyé de la question.
+L'administration protégée permet de :
 
-### 3. Administration cachée — `/admin`
+- créer plusieurs activités et choisir celle affichée sur l'écran principal ;
+- personnaliser le titre et l'intervenant ;
+- générer un QR code en PNG ou SVG ;
+- consulter les questions reçues en temps réel ;
+- approuver, masquer, supprimer, épingler ou marquer une question comme répondue ;
+- activer la modération préalable et régler les limites anti-spam ;
+- exporter les questions en CSV ;
+- projeter une question approuvée avec `/ecran?code=...`.
 
-Cette URL n’est liée depuis aucune page publique. Elle demande `ADMIN_PASSWORD` et utilise un cookie de session signé, `httpOnly`, `SameSite=Strict` et `Secure` en production, valable 12 heures. Cinq erreurs de mot de passe depuis la même adresse IP pseudonymisée bloquent les essais pendant 15 minutes. La page porte `noindex` et `/robots.txt` exclut `/admin` et `/api/`.
+## Personnalisation du thème
 
-L’administration permet de créer des événements, modifier titre/intervenant, choisir l’événement projeté, créer/imprimer un QR en PNG ou SVG, consulter les questions avec actualisation en direct et rafraîchissement de secours, les approuver/masquer/supprimer/épingler/marquer comme répondues, ouvrir ou fermer la réception, activer la modération préalable, régler le quota par appareil, exporter le CSV et ouvrir `/ecran?code=...` pour projeter une question épinglée.
+La structure fonctionnelle reste la même, quel que soit le contexte
+d'utilisation. Pour adapter l'application à une organisation, remplacez
+notamment :
 
-## Installation et commandes
+- le nom et le logo dans les composants de marque ;
+- les couleurs et les polices dans `src/app/globals.css` et `src/app/layout.tsx` ;
+- les textes de présentation dans les pages et composants de l'interface ;
+- les titres, intervenants et événements depuis `/admin`.
 
-Prérequis : Node.js 20+ et npm. Pour le développement local :
+Ainsi, la même base peut devenir une application de questions pour une
+conférence, un outil de QCM pour une classe ou une plateforme d'interaction
+pour un événement.
+
+## Installation
+
+Prérequis : Node.js 20+ et npm.
 
 ```powershell
 npm install
@@ -34,7 +63,10 @@ Copy-Item .env.example .env.local
 npm run dev
 ```
 
-Renseignez les variables ci-dessous et appliquez `supabase/schema.sql` avant d’utiliser les pages connectées aux données. Contrôles et serveur de production :
+Renseignez les variables d'environnement et appliquez `supabase/schema.sql`
+avant d'utiliser les fonctionnalités connectées aux données.
+
+Commandes de vérification et de production :
 
 ```bash
 npm run lint
@@ -42,71 +74,50 @@ npm run build
 npm start
 ```
 
-## Variables d’environnement
+## Variables d'environnement
 
 | Variable | Utilisation |
 | --- | --- |
-| `NEXT_PUBLIC_SITE_URL` | Origine HTTPS publique du site, sans barre oblique finale, par exemple `https://comite-social.vercel.app`. Le QR est construit depuis cette valeur, jamais depuis `localhost`. |
+| `NEXT_PUBLIC_SITE_URL` | URL HTTPS publique du site, sans barre oblique finale. Les QR codes sont construits depuis cette valeur. |
 | `NEXT_PUBLIC_SUPABASE_URL` | URL du projet Supabase. |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Clé publique anon, limitée par les règles RLS pour lecture/Realtime. |
-| `SUPABASE_SERVICE_ROLE_KEY` | Clé secrète serveur, uniquement pour les routes et pages serveur. Ne jamais l’exposer dans le navigateur. |
-| `ADMIN_PASSWORD` | Mot de passe fort pour `/admin`. |
-| `SESSION_SECRET` | Secret aléatoire d’au moins 32 caractères pour signer la session et créer les empreintes pseudonymisées. |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Clé publique anon, limitée par les règles RLS. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Clé secrète serveur, uniquement pour les routes et pages serveur. |
+| `ADMIN_PASSWORD` | Mot de passe de l'administration. |
+| `SESSION_SECRET` | Secret aléatoire d'au moins 32 caractères pour signer la session. |
 
-Générez un secret avec `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`. `.env.local` est ignoré par Git.
+Ne publiez jamais `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_PASSWORD` ou
+`SESSION_SECRET`. Le fichier `.env.local` est ignoré par Git.
 
-Pour tester le scan depuis un téléphone pendant le développement, configurez `NEXT_PUBLIC_SITE_URL` avec une URL HTTPS publiquement accessible qui pointe vers votre instance (par exemple un tunnel de développement). Ne mettez pas `localhost` dans cette variable : le téléphone ne pourrait pas joindre l’ordinateur via cette adresse.
+## Supabase et déploiement
 
-## Supabase et déploiement Vercel
+1. Créez un projet Supabase et exécutez `supabase/schema.sql` dans le SQL Editor.
+2. Copiez l'URL, la clé `anon` et la clé `service_role` dans `.env.local`.
+3. Importez le dépôt dans Vercel comme projet Next.js.
+4. Ajoutez les six variables d'environnement dans Vercel pour les environnements
+   nécessaires, puis redéployez.
+5. Ouvrez `/admin`, créez une activité et choisissez-la pour l'affichage.
+6. Vérifiez le scan du QR depuis un téléphone et testez l'envoi d'une question.
 
-1. Créez un projet Supabase, puis dans **SQL Editor**, exécutez le fichier `supabase/schema.sql`. Il crée les tables `events`, `questions`, `settings`, les tables de quotas et de tentatives admin, les index, la fonction SQL de limitation et les règles RLS. Si le schéma avait déjà été appliqué, réexécutez le fichier pour installer la limitation des tentatives admin.
-2. Dans **Project Settings → API**, copiez l’URL du projet, la clé `anon` et la clé `service_role`. Renseignez les variables dans `.env.local` pour le développement.
-3. Dans Vercel, importez le dépôt comme projet **Next.js** et ajoutez les six variables du tableau aux environnements appropriés. `NEXT_PUBLIC_SITE_URL` doit être l’URL HTTPS finale utilisée par les participants. Redéployez après une modification de cette variable.
-4. Ouvrez `/admin` directement, connectez-vous, créez l’événement, modifiez le titre/intervenant si besoin, puis cliquez **Afficher sur la page principale**. Vérifiez `/` et scannez le QR avec un téléphone hors Wi-Fi local.
-5. En production, testez l’envoi, la modération sans rechargement, l’épinglage sur `/ecran?code=...`, puis la fermeture de réception.
+Pour tester avec un téléphone en développement, utilisez une URL HTTPS
+publiquement accessible. N'utilisez pas `localhost` dans `NEXT_PUBLIC_SITE_URL`.
 
-## Guide du jour J
+## Sécurité et limites
 
-1. Ouvrir `/admin` directement et se connecter.
-2. Créer l’événement, vérifier le titre et l’intervenant, puis le choisir pour l’affichage principal.
-3. Projeter `/` en plein écran : le QR et l’adresse `/user?code=...` apparaissent au centre. En alternative, l’admin peut télécharger le PNG pour une impression rapide ou le SVG pour une impression redimensionnable.
-4. Laisser la réception ouverte. Activer la modération préalable si chaque question doit être validée avant publication.
-5. Modérer les questions dans le tableau de bord. Utiliser l’export CSV si nécessaire. Ouvrir l’écran projecteur depuis l’admin et épingler une question approuvée.
-6. Fermer la réception à la fin de la conférence.
-
-## Hypothèses et limites
-
-- L’événement projeté est un réglage global : un seul événement apparaît sur `/` à la fois. Sans sélection explicite, le plus récent est utilisé.
-- Les limites reposent sur des tables et fonctions SQL atomiques Supabase pour fonctionner en serverless sur Vercel. Les adresses IP sont hachées avec `SESSION_SECRET`; elles ne sont pas stockées en clair. Vercel doit fournir un `x-forwarded-for` fiable.
-- Le verrouillage du mot de passe est partagé par adresse IP (après hachage) et nécessite le schéma SQL à jour. Des personnes partageant la même IP partagent aussi ce verrouillage.
-- Le filtre de mots inappropriés est une liste française modifiable dans `src/lib/utils.ts`; il peut être adapté au contexte de l’événement.
-- Les lectures publiques Supabase sont limitées aux questions approuvées. Toutes les écritures passent par les routes serveur avec la clé `service_role`.
-- Le tri par votes et le compteur existent dans l’admin, mais cette version n’expose pas de vote public.
+- Les écritures passent par les routes API serveur.
+- Les questions publiques sont limitées aux contenus approuvés.
+- L'anti-spam utilise un cookie d'appareil, des limites par appareil et par IP,
+  un honeypot et un délai minimal avant l'envoi.
+- L'administration utilise un cookie de session signé et une limitation des
+  tentatives de connexion.
+- Le vote public n'est pas activé dans cette version ; les votes affichés dans
+  l'administration servent uniquement de statistique.
 
 ## Structure du projet
 
-- `src/app/page.tsx` : page principale projetée et QR absolu.
-- `src/app/user/page.tsx` : adresse publique portée par le QR.
-- `src/app/question/page.tsx` : alias compatible du formulaire participant.
-- `src/app/admin/page.tsx` et `src/components/admin-*` : administration protégée.
-- `src/app/ecran/page.tsx` et `src/components/screen-view.tsx` : affichage de la question épinglée.
-- `src/app/api` : API d’envoi, quotas, authentification et modération.
-- `src/lib` : clients Supabase, session, sélection de l’événement et utilitaires.
+- `src/app/page.tsx` : écran principal et QR code.
+- `src/app/user/page.tsx` : formulaire participant.
+- `src/app/admin/page.tsx` et `src/components/admin-*` : administration.
+- `src/app/ecran/page.tsx` et `src/components/screen-view.tsx` : projection.
+- `src/app/api` : envoi, quotas, authentification et modération.
+- `src/lib` : Supabase, session, types et utilitaires.
 - `supabase/schema.sql` : tables, index, RLS, Realtime et limites atomiques.
-
-## Refonte de l’interface (novembre 2026)
-
-Hypothèses retenues : le logo joint au brief est la source de marque à utiliser et a été converti en PNG pour l’interface. Le fichier source fourni est un JPEG compressé ; le relevé des aplats donne un bleu dominant `#02557D` et un vert `#C0D800`. Le bleu profond `#0A3F5F` est conservé pour les titres et les textes sur fond vert afin de maintenir le contraste. Le vert sert d’accent ou de fond de bouton, jamais de texte sur blanc. Les polices Poppins, Inter et Cairo sont chargées avec `next/font`.
-
-La navigation d’administration est composée de liens d’ancrage vers les sections déjà prises en charge. Les opérations d’événement, les QR, l’export, les règles de modération et les flux Realtime continuent d’utiliser les routes API et clients existants. Aucun endpoint ni schéma de données n’a été modifié dans cette passe de présentation.
-
-Fichiers modifiés ou ajoutés pour cette passe :
-
-- `public/logo.png` : logo fourni converti en PNG.
-- `src/app/globals.css` : tokens, composants visuels, responsive, focus, mouvements réduits et styles des trois zones.
-- `src/app/layout.tsx` : polices et icônes globales.
-- `src/app/page.tsx` : écran QR de projection.
-- `src/app/question/page.tsx` et `src/components/participant-form.tsx` : en-tête, formulaire mobile, états accessibles et SEO noindex.
-- `src/components/admin-login.tsx` et `src/components/admin-panel.tsx` : identité de connexion et navigation admin responsive.
-- `src/components/screen-view.tsx` et `src/app/ecran/page.tsx` : écran question plein format.
-- `src/components/brand.tsx` : identité de marque et décoration en vagues.
